@@ -15,7 +15,7 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def readings(date=None, titles=None):
+def readings(date=None, titles=None, json_output=False):
     """Get daily Bible readings."""
     cmd = ['python3', os.path.join(SCRIPT_DIR, 'lib', 'daily_readings.py')]
     if date:
@@ -23,6 +23,8 @@ def readings(date=None, titles=None):
     if titles:
         cmd.append('--titles')
         cmd.extend(titles)
+    if json_output:
+        cmd.append('--json')
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(result.stdout, end='')
@@ -33,13 +35,15 @@ def readings(date=None, titles=None):
     return result.returncode
 
 
-def mass_times(location, page=1, limit=None):
+def mass_times(location, page=1, limit=None, json_output=False):
     """Find nearby churches and Mass times."""
     cmd = ['python3', os.path.join(SCRIPT_DIR, 'lib', 'mass_times.py'), location]
     if page > 1:
         cmd.extend(['--page', str(page)])
     if limit:
         cmd.extend(['--limit', str(limit)])
+    if json_output:
+        cmd.append('--json')
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(result.stdout, end='')
@@ -50,7 +54,7 @@ def mass_times(location, page=1, limit=None):
     return result.returncode
 
 
-def search_prayers(query, prayer_type='All', limit=20, language='en'):
+def search_prayers(query, prayer_type='All', limit=20, language='en', json_output=False):
     """Search for prayers."""
     cmd = ['python3', os.path.join(SCRIPT_DIR, 'lib', 'prayers.py'), 'search', query]
     if prayer_type != 'All':
@@ -59,6 +63,8 @@ def search_prayers(query, prayer_type='All', limit=20, language='en'):
         cmd.extend(['--limit', str(limit)])
     if language != 'en':
         cmd.extend(['--language', language])
+    if json_output:
+        cmd.append('--json')
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(result.stdout, end='')
@@ -69,9 +75,11 @@ def search_prayers(query, prayer_type='All', limit=20, language='en'):
     return result.returncode
 
 
-def get_prayer(url):
+def get_prayer(url, json_output=False):
     """Get prayer text from URL."""
     cmd = ['python3', os.path.join(SCRIPT_DIR, 'lib', 'prayers.py'), 'get', url]
+    if json_output:
+        cmd.append('--json')
     
     result = subprocess.run(cmd, capture_output=True, text=True)
     print(result.stdout, end='')
@@ -117,12 +125,14 @@ Commands:
     readings_parser = subparsers.add_parser('readings', help='Get daily Bible readings')
     readings_parser.add_argument('--date', '-d', help='Date in YYYY-MM-DD format (default: today)')
     readings_parser.add_argument('--titles', '-t', nargs='+', help='Filter by reading titles (e.g., Gospel "Reading 1")')
+    readings_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     # Mass times command
     mass_times_parser = subparsers.add_parser('mass-times', help='Find nearby churches and Mass times')
     mass_times_parser.add_argument('location', help='Location to search (city, zipcode, or address)')
     mass_times_parser.add_argument('--page', '-p', type=int, default=1, help='Page number for pagination (default: 1)')
     mass_times_parser.add_argument('--limit', '-l', type=int, help='Maximum number of churches to return')
+    mass_times_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     # Search prayers command
     search_prayers_parser = subparsers.add_parser('search-prayers', help='Search for Catholic prayers')
@@ -130,10 +140,12 @@ Commands:
     search_prayers_parser.add_argument('--type', default='All', help='Prayer type filter (default: All)')
     search_prayers_parser.add_argument('--limit', '-l', type=int, default=20, help='Number of results (default: 20)')
     search_prayers_parser.add_argument('--language', default='en', choices=['en', 'es'], help='Language: en (English) or es (Spanish) (default: en)')
+    search_prayers_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     # Get prayer command
     get_prayer_parser = subparsers.add_parser('get-prayer', help='Get full text of a specific prayer')
     get_prayer_parser.add_argument('url', help='Prayer URL')
+    get_prayer_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     args = parser.parse_args()
     
@@ -143,13 +155,13 @@ Commands:
     
     # Route to appropriate function
     if args.command == 'readings':
-        return readings(args.date, args.titles)
+        return readings(args.date, args.titles, args.json)
     elif args.command == 'mass-times':
-        return mass_times(args.location, args.page, args.limit)
+        return mass_times(args.location, args.page, args.limit, args.json)
     elif args.command == 'search-prayers':
-        return search_prayers(args.query, args.type, args.limit, args.language)
+        return search_prayers(args.query, args.type, args.limit, args.language, args.json)
     elif args.command == 'get-prayer':
-        return get_prayer(args.url)
+        return get_prayer(args.url, args.json)
     else:
         parser.print_help()
         return 1

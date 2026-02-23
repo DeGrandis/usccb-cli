@@ -13,7 +13,7 @@ This skill provides scrapers that interact with the USCCB website to retrieve:
 - 📖 **Daily Bible Readings**: Complete Mass readings including First Reading, Psalm, Gospel, etc.
 - 🙏 **Prayers**: Search and retrieve Catholic prayers and devotions in English or Spanish
 
-All tools output clean JSON to stdout for easy integration with automation tools and LLMs.
+All tools output **markdown by default** for easy LLM parsing, with optional `--json` flag for structured data output.
 
 ## 🛠️ Installation
 
@@ -49,38 +49,57 @@ Find Catholic churches near a location with Mass schedules and contact informati
 ./usccbcli mass-times "Chicago, IL" --limit 5
 ```
 
-**Output:**
+**Get JSON output instead of markdown:**
+```bash
+./usccbcli mass-times "Boston, MA" --json
+```
+
+**Output (Markdown - Default):**
+```markdown
+# Catholic Churches Near Boston, MA
+**Coordinates:** 42.3601, -71.0589
+**Results:** 2 churches (Page 1)
+
+## 1. The Paulist Center
+**Address:** 5 Park Street
+**Location:** Boston, Massachusetts 02108
+**Phone:** (617) 742-4460
+**Website:** http://www.paulistcenter.org
+**Distance:** 0.27 miles
+
+**Mass Times:**
+- **Sunday:** 10:00, 18:00
+- **Monday:** 12:00
+- **Tuesday:** 12:00
+- **Wednesday:** 12:00
+- **Thursday:** 12:00
+- **Friday:** 11:00 (Confessions), 12:00
+- **Saturday:** 17:00
+
+---
+```
+
+**Output (JSON with --json flag):**
 ```json
 {
   "location_searched": "Boston, MA",
   "coordinates": {
-    "latitude": 42.3554334,
-    "longitude": -71.060511
+    "latitude": 42.3601,
+    "longitude": -71.0589
   },
   "page": 1,
-  "total_results": 30,
+  "total_results": 2,
   "churches": [
     {
-      "name": "Cathedral of the Holy Cross",
-      "distance": 0.5,
-      "church_address_street": "1400 Washington Street",
-      "church_address_city": "Boston",
-      "church_address_state": "MA",
-      "church_address_postal_code": "02118",
-      "church_contact_phone": "(617) 542-5682",
-      "church_contact_email": "info@holycrossboston.org",
-      "church_worship_times": [
-        {
-          "day": "Sunday",
-          "time": "8:00 AM, 10:00 AM, 12:00 PM, 5:30 PM"
-        },
-        {
-          "day": "Monday-Saturday",
-          "time": "9:00 AM, 12:05 PM"
-        }
-      ],
-      "diocese_name": "Archdiocese of Boston",
-      "pastor": "Rev. John Smith"
+      "name": "The Paulist Center",
+      "distance": "0.27",
+      "church_address_street_address": "5 Park Street",
+      "church_address_city_name": "Boston",
+      "church_address_providence_name": "Massachusetts",
+      "church_address_postal_code": "02108",
+      "phone_number": "(617) 742-4460",
+      "url": "http://www.paulistcenter.org",
+      "church_worship_times": [...]
     }
   ]
 }
@@ -90,8 +109,11 @@ Find Catholic churches near a location with Mass schedules and contact informati
 - `location`: Required. City, address, or ZIP code to search near
 - `--page N`: Optional. Page number for pagination (default: 1)
 - `--limit N`: Optional. Maximum number of churches to return
+- `--json`: Optional. Output JSON instead of markdown (default: markdown)
 
-**Note:** Churches are sorted by distance from the searched location. The API uses OpenStreetMap's Nominatim service for geocoding (no API key required).
+**Data Source:** Mass times data comes from [masstimes.org](https://masstimes.org) via the `updateparishdata.org` API - the same data source used by the popular MassTimes.org website trusted by millions of Catholics worldwide.
+
+**Note:** Churches are sorted by distance from the searched location. Outputs markdown by default for easy LLM parsing. Use `--json` for structured data. The API uses OpenStreetMap's Nominatim service for geocoding (no API key required).
 
 ---
 
@@ -114,7 +136,37 @@ Get the complete daily Mass readings for any date.
 ./usccbcli readings --titles "Gospel" "Reading 1"
 ```
 
-**Output:**
+**Get JSON output instead of markdown:**
+```bash
+./usccbcli readings --date 2026-12-25 --json
+```
+
+**Output (Markdown - Default):**
+```markdown
+# Daily Mass Readings - The Nativity of the Lord (Christmas) - Mass During the Day
+**Date:** 2026-12-25
+**Source:** https://bible.usccb.org/bible/readings/122526.cfm
+
+## Reading 1
+**Citation:** Is 52:7-10
+
+How beautiful upon the mountains
+are the feet of him who brings glad tidings,
+Announcing peace, bearing good news...
+
+---
+
+## Gospel
+**Citation:** Jn 1:1-18
+
+In the beginning was the Word,
+and the Word was with God,
+and the Word was God...
+
+---
+```
+
+**Output (JSON with --json flag):**
 ```json
 {
   "date": "2026-12-25",
@@ -125,16 +177,6 @@ Get the complete daily Mass readings for any date.
       "title": "Reading 1",
       "citation": "Is 52:7-10",
       "text": "How beautiful upon the mountains are the feet of him who brings glad tidings..."
-    },
-    {
-      "title": "Responsorial Psalm",
-      "citation": "Ps 98:1, 2-3, 3-4, 5-6",
-      "text": "R. All the ends of the earth have seen the saving power of God..."
-    },
-    {
-      "title": "Reading 2",
-      "citation": "Heb 1:1-6",
-      "text": "Brothers and sisters: In times past, God spoke in partial and various ways..."
     },
     {
       "title": "Gospel",
@@ -148,6 +190,7 @@ Get the complete daily Mass readings for any date.
 **Arguments:**
 - `--date YYYY-MM-DD`: Optional. Get readings for specific date (defaults to today)
 - `--titles "Title1" "Title2" ...`: Optional. Filter to return only specific readings
+- `--json`: Optional. Output JSON instead of markdown (default: markdown)
 
 ---
 
@@ -175,22 +218,44 @@ Search for Catholic prayers and devotions.
 ./usccbcli search-prayers "Advent" --type "Seasonal Prayer"
 ```
 
-**Output:**
+**Get JSON output instead of markdown:**
+```bash
+./usccbcli search-prayers "peace" --json
+```
+
+**Output (Markdown - Default):**
+```markdown
+# Prayer Search Results for: "peace"
+**Total Results:** 3
+**Source:** https://www.usccb.org/prayers?key=peace
+
+## 1. Pope Francis' Prayer for Peace
+**Type:** Papal Prayers
+**URL:** https://www.usccb.org/prayers/pope-francis-prayer-peace
+
+## 2. Prayer for Peace
+**Type:** Prayers for the Church and the World
+**URL:** https://www.usccb.org/prayers/prayer-peace
+
+---
+```
+
+**Output (JSON with --json flag):**
 ```json
 {
-  "query": "Hail Mary",
-  "language": "en",
-  "total_results": 5,
+  "query": "peace",
+  "search_url": "https://www.usccb.org/prayers?key=peace",
+  "total_results": 3,
   "prayers": [
     {
-      "title": "Hail Mary",
-      "url": "https://www.usccb.org/prayers/hail-mary",
-      "excerpt": "The Hail Mary is a traditional Catholic prayer asking for the intercession of Mary..."
+      "title": "Pope Francis' Prayer for Peace",
+      "url": "https://www.usccb.org/prayers/pope-francis-prayer-peace",
+      "type": "Papal Prayers"
     },
     {
-      "title": "The Rosary",
-      "url": "https://www.usccb.org/prayers/rosary",
-      "excerpt": "The Rosary is a meditation on the life of Christ through the eyes of Mary..."
+      "title": "Prayer for Peace",
+      "url": "https://www.usccb.org/prayers/prayer-peace",
+      "type": "Prayers for the Church and the World"
     }
   ]
 }
@@ -202,6 +267,7 @@ Search for Catholic prayers and devotions.
 - `--limit N`: Optional. Maximum number of results (valid values: 20, 50, or 100, default: 20)
 - `--type "Type"`: Optional. Filter by prayer type
 - `--office "Office"`: Optional. Filter by USCCB office/committee
+- `--json`: Optional. Output JSON instead of markdown (default: markdown)
 
 **Note:** Due to USCCB API limitations, `--limit` only accepts values of 20, 50, or 100. Other values will be rounded to the nearest valid option.
 
@@ -216,17 +282,43 @@ Retrieve the full text of a specific prayer.
 ./usccbcli get-prayer "https://www.usccb.org/prayers/hail-mary"
 ```
 
-**Output:**
+**Get JSON output instead of markdown:**
+```bash
+./usccbcli get-prayer "https://www.usccb.org/prayers/hail-mary" --json
+```
+
+**Output (Markdown - Default):**
+```markdown
+# Hail Mary
+**Source:** https://www.usccb.org/prayers/hail-mary
+
+---
+
+Hail, Mary, full of grace,
+the Lord is with thee.
+Blessed art thou among women
+and blessed is the fruit of thy womb, Jesus.
+Holy Mary, Mother of God,
+pray for us sinners,
+now and at the hour of our death.
+
+Amen.
+
+---
+```
+
+**Output (JSON with --json flag):**
 ```json
 {
   "title": "Hail Mary",
   "url": "https://www.usccb.org/prayers/hail-mary",
-  "text": "Hail Mary, full of grace,\nthe Lord is with thee.\nBlessed art thou amongst women,\nand blessed is the fruit of thy womb, Jesus.\n\nHoly Mary, Mother of God,\npray for us sinners,\nnow and at the hour of our death.\nAmen."
+  "text": "Hail, Mary, full of grace,\nthe Lord is with thee.\nBlessed art thou among women\nand blessed is the fruit of thy womb, Jesus.\nHoly Mary, Mother of God,\npray for us sinners,\nnow and at the hour of our death.\n\nAmen."
 }
 ```
 
 **Arguments:**
 - `url`: Required. Full URL to the prayer page on USCCB.org
+- `--json`: Optional. Output JSON instead of markdown (default: markdown)
 
 ---
 
@@ -260,16 +352,23 @@ Retrieve the full text of a specific prayer.
 ## 💻 Output Format
 
 All commands:
-- Output JSON to **stdout only** (no files created)
+- Output **markdown by default** to stdout (easy for LLMs to parse)
+- Optional **`--json` flag** for structured JSON output
 - Send errors to **stderr**
 - Exit with code **1** on errors
-- No debug output - only clean JSON or error messages
+- No debug output - only clean markdown/JSON or error messages
+
+**Why Markdown Default?**
+- LLMs parse markdown more efficiently than nested JSON for Q&A tasks
+- Headers (# ##) and bold labels (**Field:**) provide clear structure
+- Bullet lists and tables are token-efficient
+- Use `--json` when you need programmatic data access
 
 This makes them perfect for:
-- Shell scripts and automation
-- LLM/AI agent integration
-- CI/CD pipelines
-- Catholic app development
+- LLM/AI agent integration (markdown)
+- Shell scripts and automation (JSON)
+- Catholic app development (JSON)
+- Direct human reading (markdown)
 
 ---
 
@@ -354,6 +453,7 @@ This project scrapes publicly available content from USCCB.org. Please respect t
 - [USCCB Daily Readings](https://bible.usccb.org/bible/readings)
 - [USCCB Prayers](https://www.usccb.org/prayers)
 - [USCCB Website](https://www.usccb.org)
+- [MassTimes.org](https://masstimes.org) - Mass times data source
 - Scripture texts are from the New American Bible, revised edition © 2010, 1991, 1986, 1970 Confraternity of Christian Doctrine, Washington, D.C.
 
 ---
@@ -362,10 +462,10 @@ This project scrapes publicly available content from USCCB.org. Please respect t
 
 | Command | Description | Required Args | Optional Args |
 |---------|-------------|---------------|---------------|
-| `readings` | Get daily Mass readings | None | `--date`, `--titles` |
-| `mass-times` | Find nearby churches | `location` | `--page`, `--limit` |
-| `search-prayers` | Search for prayers | `query` | `--language`, `--limit`, `--type`, `--office` |
-| `get-prayer` | Get full prayer text | `url` | None |
+| `readings` | Get daily Mass readings | None | `--date`, `--titles`, `--json` |
+| `mass-times` | Find nearby churches | `location` | `--page`, `--limit`, `--json` |
+| `search-prayers` | Search for prayers | `query` | `--language`, `--limit`, `--type`, `--office`, `--json` |
+| `get-prayer` | Get full prayer text | `url` | `--json` |
 
 ---
 

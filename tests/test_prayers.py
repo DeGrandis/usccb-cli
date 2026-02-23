@@ -10,7 +10,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from lib.prayers import search_prayers, get_prayer
+from lib.prayers import search_prayers, get_prayer, format_search_as_markdown, format_prayer_as_markdown
 
 
 class TestPrayers(unittest.TestCase):
@@ -175,13 +175,14 @@ class TestPrayers(unittest.TestCase):
         
         result = get_prayer('https://www.usccb.org/prayers/test')
         
-        self.assertEqual(result['text'], '')
+        self.assertIsNone(result['text'])
         self.assertIn('error', result)
         
     @patch('lib.prayers.requests.get')
     def test_get_prayer_request_failure(self, mock_get):
         """Test handling of request failures"""
-        mock_get.side_effect = Exception("Network error")
+        import requests
+        mock_get.side_effect = requests.RequestException("Network error")
         
         result = get_prayer('https://www.usccb.org/prayers/test')
         
@@ -212,6 +213,87 @@ class TestPrayers(unittest.TestCase):
         self.assertIn('\n', result['text'])
         self.assertIn('Line one', result['text'])
         self.assertIn('Line two', result['text'])
+    
+    def test_format_search_as_markdown(self):
+        """Test markdown formatting of prayer search results"""
+        mock_result = {
+            "query": "peace",
+            "search_url": "https://www.usccb.org/prayers?key=peace",
+            "total_results": 2,
+            "prayers": [
+                {
+                    "title": "Prayer for Peace",
+                    "url": "https://www.usccb.org/prayers/prayer-peace",
+                    "type": "World Prayers"
+                },
+                {
+                    "title": "St. Francis Prayer",
+                    "url": "https://www.usccb.org/prayers/st-francis",
+                    "type": "Saint Prayers"
+                }
+            ]
+        }
+        
+        markdown = format_search_as_markdown(mock_result)
+        
+        self.assertIn('# Prayer Search Results for: "peace"', markdown)
+        self.assertIn("**Total Results:** 2", markdown)
+        self.assertIn("**Source:**", markdown)
+        self.assertIn("## 1. Prayer for Peace", markdown)
+        self.assertIn("**Type:** World Prayers", markdown)
+        self.assertIn("**URL:** https://www.usccb.org/prayers/prayer-peace", markdown)
+        self.assertIn("## 2. St. Francis Prayer", markdown)
+    
+    def test_format_search_as_markdown_no_results(self):
+        """Test markdown formatting when no prayers found"""
+        mock_result = {
+            "query": "xyz123",
+            "search_url": "https://www.usccb.org/prayers?key=xyz123",
+            "total_results": 0,
+            "prayers": []
+        }
+        
+        markdown = format_search_as_markdown(mock_result)
+        
+        self.assertIn("*No prayers found matching your search.*", markdown)
+    
+    def test_format_search_as_markdown_error(self):
+        """Test markdown formatting of search error"""
+        error_result = {
+            "error": "Network failure"
+        }
+        
+        markdown = format_search_as_markdown(error_result)
+        
+        self.assertEqual(markdown, "Error: Network failure")
+    
+    def test_format_prayer_as_markdown(self):
+        """Test markdown formatting of prayer text"""
+        mock_result = {
+            "title": "Hail Mary",
+            "url": "https://www.usccb.org/prayers/hail-mary",
+            "text": "Hail, Mary, full of grace,\nthe Lord is with thee.\n\nBlessed art thou among women\nand blessed is the fruit of thy womb, Jesus.\n\nAmen."
+        }
+        
+        markdown = format_prayer_as_markdown(mock_result)
+        
+        self.assertIn("# Hail Mary", markdown)
+        self.assertIn("**Source:** https://www.usccb.org/prayers/hail-mary", markdown)
+        self.assertIn("---", markdown)
+        self.assertIn("Hail, Mary, full of grace", markdown)
+        self.assertIn("Blessed art thou among women", markdown)
+        self.assertIn("Amen.", markdown)
+    
+    def test_format_prayer_as_markdown_error(self):
+        """Test markdown formatting of prayer retrieval error"""
+        error_result = {
+            "error": "Prayer not found",
+            "url": "https://www.usccb.org/prayers/missing"
+        }
+        
+        markdown = format_prayer_as_markdown(error_result)
+        
+        self.assertEqual(markdown, "Error: Prayer not found")
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 USCCB Daily Bible Readings Scraper
 
 Retrieves daily Bible readings from the United States Conference of Catholic Bishops website.
-Outputs JSON to stdout for easy integration with automation tools and LLMs.
+Outputs markdown by default for LLM parsing, or JSON with --json flag.
 """
 
 import sys
@@ -121,18 +121,48 @@ def get_daily_readings(date=None, titles=None):
     return readings_data
 
 
+def format_as_markdown(readings_data):
+    """Format readings data as markdown for LLM parsing."""
+    if "error" in readings_data:
+        return f"Error: {readings_data['error']}"
+    
+    output = []
+    
+    # Header
+    output.append(f"# Daily Bible Readings - {readings_data['liturgical_date']}")
+    output.append(f"**Date:** {readings_data['date']}")
+    output.append(f"**Source:** {readings_data['url']}")
+    output.append("")
+    
+    # Each reading
+    for reading in readings_data['readings']:
+        output.append(f"## {reading['title']}")
+        output.append(f"**Citation:** {reading['citation']}")
+        output.append("")
+        output.append(reading['text'])
+        output.append("")
+        output.append("---")
+        output.append("")
+    
+    return '\n'.join(output)
+
+
 if __name__ == "__main__":
     # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser(description='Get daily Bible readings from USCCB')
     parser.add_argument('--date', '-d', help='Date in YYYY-MM-DD format')
     parser.add_argument('--titles', '-t', nargs='+', help='Filter by reading titles (e.g., Gospel "Reading 1")')
+    parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     args = parser.parse_args()
     
     result = get_daily_readings(args.date, args.titles)
     
-    # Output JSON to stdout
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    # Output format based on flag
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(format_as_markdown(result))
     
     # Exit with error code if there was an error
     if "error" in result:

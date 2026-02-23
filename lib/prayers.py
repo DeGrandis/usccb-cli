@@ -3,6 +3,7 @@
 USCCB Prayers Scraper
 
 Search for Catholic prayers and retrieve their full text from the USCCB website.
+Outputs markdown by default for LLM parsing, or JSON with --json flag.
 """
 
 import sys
@@ -163,6 +164,58 @@ def get_prayer(url):
     return result
 
 
+def format_search_as_markdown(result):
+    """Format prayer search results as markdown for LLM parsing."""
+    if "error" in result:
+        return f"Error: {result['error']}"
+    
+    output = []
+    
+    # Header
+    output.append(f"# Prayer Search Results for: \"{result['query']}\"")
+    output.append(f"**Total Results:** {result['total_results']}")
+    output.append(f"**Source:** {result['search_url']}")
+    output.append("")
+    
+    # Each prayer
+    for i, prayer in enumerate(result['prayers'], 1):
+        output.append(f"## {i}. {prayer['title']}")
+        if prayer.get('type'):
+            output.append(f"**Type:** {prayer['type']}")
+        output.append(f"**URL:** {prayer['url']}")
+        output.append("")
+    
+    if not result['prayers']:
+        output.append("*No prayers found matching your search.*")
+        output.append("")
+    
+    return '\n'.join(output)
+
+
+def format_prayer_as_markdown(result):
+    """Format prayer text as markdown for LLM parsing."""
+    if "error" in result:
+        return f"Error: {result['error']}"
+    
+    output = []
+    
+    # Header
+    output.append(f"# {result['title']}")
+    output.append(f"**Source:** {result['url']}")
+    output.append("")
+    output.append("---")
+    output.append("")
+    
+    # Prayer text
+    if result['text']:
+        output.append(result['text'])
+    
+    output.append("")
+    output.append("---")
+    
+    return '\n'.join(output)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Search for Catholic prayers or retrieve prayer text from USCCB'
@@ -175,10 +228,12 @@ if __name__ == "__main__":
     search_parser.add_argument('--type', default='All', help='Prayer type filter')
     search_parser.add_argument('--limit', type=int, default=20, help='Number of results (default: 20)')
     search_parser.add_argument('--language', default='en', choices=['en', 'es'], help='Language: en (English) or es (Spanish) (default: en)')
+    search_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     # Get command
     get_parser = subparsers.add_parser('get', help='Get prayer text from URL')
     get_parser.add_argument('url', help='Prayer URL')
+    get_parser.add_argument('--json', action='store_true', help='Output as JSON instead of markdown')
     
     args = parser.parse_args()
     
@@ -188,14 +243,19 @@ if __name__ == "__main__":
     
     if args.action == 'search':
         result = search_prayers(args.query, prayer_type=args.type, items_per_page=args.limit, language=args.language)
+        if args.json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(format_search_as_markdown(result))
     elif args.action == 'get':
         result = get_prayer(args.url)
+        if args.json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(format_prayer_as_markdown(result))
     else:
         parser.print_help()
         sys.exit(1)
-    
-    # Output JSON to stdout
-    print(json.dumps(result, indent=2, ensure_ascii=False))
     
     # Exit with error code if there was an error
     if "error" in result:

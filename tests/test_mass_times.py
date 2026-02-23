@@ -10,7 +10,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from lib.mass_times import geocode_location, get_mass_times
+from lib.mass_times import geocode_location, get_mass_times, format_as_markdown
 
 
 class TestMassTimes(unittest.TestCase):
@@ -72,30 +72,28 @@ class TestMassTimes(unittest.TestCase):
         }]
         geocode_response.raise_for_status = Mock()
         
-        # Mock parish API response
+        # Mock parish API response - returns array directly, not wrapped in 'data'
         parish_response = Mock()
-        parish_response.json.return_value = {
-            'data': [
-                {
-                    'name': 'St. Patrick Church',
-                    'church_address_street': '123 Main St',
-                    'church_address_city': 'Boston',
-                    'church_address_state': 'MA',
-                    'distance': 0.5,
-                    'church_worship_times': [
-                        {'day': 'Sunday', 'time': '9:00 AM'}
-                    ]
-                },
-                {
-                    'name': 'Holy Name Church',
-                    'church_address_street': '456 Oak Ave',
-                    'church_address_city': 'Boston',
-                    'church_address_state': 'MA',
-                    'distance': 1.2,
-                    'church_worship_times': []
-                }
-            ]
-        }
+        parish_response.json.return_value = [
+            {
+                'name': 'St. Patrick Church',
+                'church_address_street': '123 Main St',
+                'church_address_city': 'Boston',
+                'church_address_state': 'MA',
+                'distance': 0.5,
+                'church_worship_times': [
+                    {'day': 'Sunday', 'time': '9:00 AM'}
+                ]
+            },
+            {
+                'name': 'Holy Name Church',
+                'church_address_street': '456 Oak Ave',
+                'church_address_city': 'Boston',
+                'church_address_state': 'MA',
+                'distance': 1.2,
+                'church_worship_times': []
+            }
+        ]
         parish_response.raise_for_status = Mock()
         
         # Set up mock to return different responses for different URLs
@@ -126,12 +124,10 @@ class TestMassTimes(unittest.TestCase):
         geocode_response.raise_for_status = Mock()
         
         parish_response = Mock()
-        parish_response.json.return_value = {
-            'data': [
-                {'name': f'Church {i}', 'distance': i * 0.5} 
-                for i in range(10)
-            ]
-        }
+        parish_response.json.return_value = [
+            {'name': f'Church {i}', 'distance': i * 0.5} 
+            for i in range(10)
+        ]
         parish_response.raise_for_status = Mock()
         
         def side_effect(url, *args, **kwargs):
@@ -157,7 +153,72 @@ class TestMassTimes(unittest.TestCase):
         result = get_mass_times('InvalidLocation123')
         
         self.assertIn('error', result)
-        self.assertIn('geocode', result['error'].lower())
+        self.assertIn('coordinates', result['error'].lower())
+    
+    def test_format_as_markdown(self):
+        """Test markdown formatting of mass times"""
+        mock_result = {
+            "location_searched": "Boston, MA",
+            "coordinates": {"latitude": 42.3601, "longitude": -71.0589},
+            "page": 1,
+            "total_results": 1,
+            "churches": [
+                {
+                    "name": "St. Patrick",
+                    "church_address_street_address": "123 Main St",
+                    "church_address_city_name": "Boston",
+                    "church_address_providence_name": "Massachusetts",
+                    "church_address_postal_code": "02108",
+                    "phone_number": "(617) 555-1234",
+                    "url": "www.stpatrick.org",
+                    "distance": "0.5",
+                    "church_worship_times": [
+                        {
+                            "day_of_week": "Sunday",
+                            "service_typename": "Weekend",
+                            "time_start": "09:00:00",
+                            "comment": "",
+                            "language": "English"
+                        },
+                        {
+                            "day_of_week": "Saturday",
+                            "service_typename": "Confessions",
+                            "time_start": "15:00:00",
+                            "comment": "Before Mass",
+                            "language": ""
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        markdown = format_as_markdown(mock_result)
+        
+        self.assertIn("# Catholic Churches Near Boston, MA", markdown)
+        self.assertIn("**Coordinates:** 42.3601, -71.0589", markdown)
+        self.assertIn("**Results:** 1 churches", markdown)
+        self.assertIn("## 1. St. Patrick", markdown)
+        self.assertIn("**Address:** 123 Main St", markdown)
+        self.assertIn("**Location:** Boston, Massachusetts 02108", markdown)
+        self.assertIn("**Phone:** (617) 555-1234", markdown)
+        self.assertIn("**Website:** www.stpatrick.org", markdown)
+        self.assertIn("**Distance:** 0.5 miles", markdown)
+        self.assertIn("**Mass Times:**", markdown)
+        self.assertIn("**Sunday:**", markdown)
+        self.assertIn("09:00", markdown)
+        self.assertIn("**Saturday:**", markdown)
+        self.assertIn("15:00 (Confessions) - Before Mass", markdown)
+    
+    def test_format_as_markdown_error(self):
+        """Test markdown formatting of error"""
+        error_result = {
+            "error": "Could not find location",
+            "location_searched": "Invalid"
+        }
+        
+        markdown = format_as_markdown(error_result)
+        
+        self.assertEqual(markdown, "Error: Could not find location")
 
 
 if __name__ == '__main__':

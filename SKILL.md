@@ -48,6 +48,9 @@ metadata:
         type: string
         enum: [en, es]
         description: "Optional for search-prayers. Language filter - 'en' for English (default), 'es' for Spanish"
+      json_output:
+        type: boolean
+        description: "Optional for all commands. Set to true to get JSON output instead of markdown (default: false for markdown)"
     required: [action]
 
   examples:
@@ -122,39 +125,47 @@ Access Catholic churches, daily Mass readings, and prayers from the United State
 ### ⛪ Mass Times
 Find Catholic churches near a location with Mass schedules and contact information.
 
-- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli mass-times <location> [--page N] [--limit N]`
+- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli mass-times <location> [--page N] [--limit N] [--json]`
 - **Example:** `~/.openclaw/skills/usccb_cli/usccbcli mass-times "Boston, MA" --limit 5`
-- **Output:** JSON with `location_searched`, `coordinates`, `page`, `total_results`, and `churches` array
-- **Church fields:** name, distance, address (street/city/state/postal_code), phone, email, worship_times (array of day/time), diocese_name, pastor
-- **Note:** Churches are sorted by distance from the searched location. Uses OpenStreetMap Nominatim for geocoding.
+- **Output:** Markdown by default with church info organized by headers and bullet lists. Use `--json` for structured JSON.
+- **Markdown format:** # header with coordinates, ## for each church, **Bold** labels for fields, Mass times grouped by day
+- **JSON fields:** `location_searched`, `coordinates`, `page`, `total_results`, `churches` array
+- **Church fields:** name, distance, address (street/city/state/postal_code), phone, url, church_worship_times (array), diocese_name
+- **Note:** Churches sorted by distance. Outputs markdown for LLM parsing by default. Use `--json` for programmatic access.
 
 ### 📖 Daily Bible Readings
 Get the complete daily Mass readings including First Reading, Responsorial Psalm, Second Reading (when applicable), Gospel Acclamation, and Gospel.
 
-- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli readings [--date YYYY-MM-DD] [--titles "Title1" "Title2" ...]`
+- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli readings [--date YYYY-MM-DD] [--titles "Title1" "Title2" ...] [--json]`
 - **Example:** `~/.openclaw/skills/usccb_cli/usccbcli readings --date 2026-12-25`
 - **Example (filter):** `~/.openclaw/skills/usccb_cli/usccbcli readings --titles "Gospel" "Reading 1"`
-- **Output:** JSON with `date`, `url`, `liturgical_date`, and `readings` array
+- **Output:** Markdown by default with liturgical date header and readings formatted with ## headers. Use `--json` for structured JSON.
+- **Markdown format:** # header with liturgical date, ## for each reading with citation, --- separators
+- **JSON fields:** `date`, `url`, `liturgical_date`, `readings` array
 - **Readings fields:** title (e.g., "Reading 1", "Gospel"), citation (e.g., "Jn 3:16-21"), text (full reading text)
-- **Note:** Defaults to today's date if no date specified. Use --titles to filter for specific readings only.
+- **Note:** Defaults to today's date if no date specified. Use --titles to filter for specific readings. Outputs markdown for LLM parsing by default.
 
 ### 🙏 Search Prayers
-Search for Catholic prayers and devotions on the USCCB website.
+Search for Catholic prayers and devotions.
 
-- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli search-prayers <query> [--language {en,es}] [--limit N] [--type "Type"] [--office "Office"]`
+- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli search-prayers <query> [--language {en,es}] [--limit N] [--type "Type"] [--office "Office"] [--json]`
 - **Example:** `~/.openclaw/skills/usccb_cli/usccbcli search-prayers "Hail Mary"`
 - **Example (Spanish):** `~/.openclaw/skills/usccb_cli/usccbcli search-prayers "Ave María" --language es`
-- **Output:** JSON with `query`, `language`, `total_results`, and `prayers` array
-- **Prayer fields:** title, url, excerpt
-- **Note:** Language defaults to 'en' (English). Use 'es' for Spanish prayers. Limit accepts 20, 50, or 100 (default: 20).
+- **Output:** Markdown by default with numbered prayer results. Use `--json` for structured JSON.
+- **Markdown format:** # header with query and count, ## numbered entries with type and URL
+- **JSON fields:** `query`, `search_url`, `total_results`, `prayers` array
+- **Prayer fields:** title, url, type
+- **Note:** Language defaults to 'en' (English). Use 'es' for Spanish prayers. Limit accepts 20, 50, or 100 (default: 20). Outputs markdown for LLM parsing by default.
 
 ### 📿 Get Prayer Text
 Retrieve the full text of a specific prayer by URL.
 
-- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli get-prayer <url>`
+- **Command:** `~/.openclaw/skills/usccb_cli/usccbcli get-prayer <url> [--json]`
 - **Example:** `~/.openclaw/skills/usccb_cli/usccbcli get-prayer "https://www.usccb.org/prayers/hail-mary"`
-- **Output:** JSON with `title`, `url`, and `text` (full prayer text with line breaks preserved)
-- **Note:** URL must be from USCCB.org prayers section
+- **Output:** Markdown by default with # header and prayer text. Use `--json` for structured JSON.
+- **Markdown format:** # title, **Source:** URL, --- separators around text
+- **JSON fields:** `title`, `url`, `text` (full prayer text with line breaks preserved)
+- **Note:** URL must be from USCCB.org prayers section. Outputs markdown for LLM parsing by default.
 
 ## Typical Workflows
 
@@ -190,17 +201,34 @@ Retrieve the full text of a specific prayer by URL.
 (Install via `pip install -r ~/.openclaw/skills/usccb_cli/requirements.txt`)
 
 ## Output Format
-All commands output JSON to stdout only. Errors go to stderr. Exit code 1 on errors.
+All commands output **markdown by default** to stdout for easy LLM parsing. Use `--json` flag for structured JSON output. Errors go to stderr. Exit code 1 on errors.
+
+**Markdown (Default):**
+- Optimized for LLM question-answering
+- Headers (# ##) for clear structure
+- Bold labels (**Field:**) for key-value pairs
+- Bullet lists for schedules and times
+- Easy to scan and extract specific information
+
+**JSON (with --json flag):**
+- Structured data for programmatic access
+- Full API response data preserved
+- Perfect for app development and automation
 
 Perfect for shell scripts, automation, and LLM integration.
 
 ## Response Formatting Tips
 
 When presenting results to users:
-- **Mass Times:** Format as a list with church name, distance, address, and Mass schedule
-- **Readings:** Show liturgical date first, then present each reading with its title and citation
-- **Prayers:** For searches, show titles and excerpts. For full prayers, preserve line breaks and formatting
+- **Mass Times (Markdown):** Parse ## headings for church names, extract Mass times from bullet lists, show distance and contact info
+- **Mass Times (JSON):** Parse churches array, format worship_times by day
+- **Readings (Markdown):** Show # header with liturgical date, present each ## reading section
+- **Readings (JSON):** Show liturgical date first, then present each reading with its title and citation
+- **Prayers (Markdown):** For searches, parse ## numbered results. For full prayers, present text preserving line breaks
+- **Prayers (JSON):** For searches, show titles and types. For full prayers, preserve line breaks and formatting
 - **Errors:** Check stderr for error messages and explain to user in plain language
+
+**Pro Tip:** Use markdown output (default) when answering questions. Use `--json` when you need to extract specific fields programmatically.
 
 ## Notes
 - Mass times data comes from updateparishdata.org API
